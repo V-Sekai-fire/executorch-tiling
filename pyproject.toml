@@ -1,19 +1,13 @@
 [project]
-name = "tilelang-hello-world"
+name = "executorch-tiled-inference"
 version = "0.1.0"
-description = "TileLang Hello World - Vector Addition Example"
+description = "ExecutorTorch Multi-Model Tiled Inference Demo"
 requires-python = ">=3.8"
 dependencies = [
-    "tilelang",
     "torch",
-    "numpy",
+    "executorch",
+    "torchvision",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.ruff]
+line-length = 100

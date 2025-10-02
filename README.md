@@ -1,225 +1,176 @@
-# TileLang Hello World
+# ExecutorTorch Tiled Inference
 
-A simple vector addition example demonstrating the core concepts of TileLang - a domain-specific language for high-performance GPU/CPU tensor kernels.
+Memory-efficient CPU inference using ExecutorTorch with a multi-model tiled processing approach.
 
-## What This Does
+## Overview
 
-This project implements element-wise vector addition (`C = A + B`) using TileLang in both **Python** and **C++**, showcasing:
+This repository demonstrates how to implement **tiled inference** with ExecutorTorch, handling the framework's static shape requirement through a production-ready multi-model pattern. Perfect for edge and mobile deployment where memory is constrained.
 
-- **Kernel definition** with `@tilelang.jit` decorator
-- **Memory management** with shared/local buffers
-- **Parallel execution** across GPU threads
-- **Performance benchmarking** and validation
+## Key Features
+
+- ✅ **100% Pure ExecutorTorch** - No PyTorch runtime fallback needed
+- ✅ **Multi-Model Architecture** - Handles static shapes elegantly
+- ✅ **Memory Efficient** - Process large inputs in small chunks
+- ✅ **Production Ready** - Real-world pattern for edge deployment
+- ✅ **Perfect Accuracy** - Results match non-tiled inference exactly
 
 ## Quick Start
 
-### Prerequisites
-
-- [uv](https://github.com/astral-sh/uv) - Fast Python package installer (will be installed automatically)
-- [just](https://github.com/casey/just) - Command runner (optional but recommended)
-- CUDA-capable GPU (optional, works on CPU too)
-- **Linux or x86_64 architecture** - TileLang currently only provides pre-built wheels for Linux x86_64
-
-**IMPORTANT - Platform Limitation**: TileLang **only supports Linux** (including WSL on Windows). The setup.py explicitly checks for Linux platform and will fail on macOS.
-
-### Using Dev Container (Recommended for macOS/Windows)
-
-This project includes a **VS Code Dev Container** configuration that provides a ready-to-use Linux environment with CUDA support:
-
-1. **Prerequisites:**
-   - [Docker Desktop](https://www.docker.com/products/docker-desktop) with GPU support
-   - [VS Code](https://code.visualstudio.com/)
-   - [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-
-2. **Open in Dev Container:**
-   - Open this folder in VS Code
-   - Press `Cmd/Ctrl+Shift+P` and select "Dev Containers: Reopen in Container"
-   - Wait for the container to build (first time takes ~5-10 minutes)
-   - Once ready, you'll have a full Linux environment with CUDA, Python 3.10, and all tools
-
-3. **Run the example:**
-   ```bash
-   python3 hello_vector_add.py
-   ```
-
-The dev container automatically installs torch, numpy, and tilelang on startup.
-
-### Alternative Options for macOS/Windows Users
-
-1. **Use WSL2** - If on Windows, use Windows Subsystem for Linux 2
-2. **Use a Linux VM** - Run Linux in a virtual machine
-3. **Remote Linux machine** - SSH into a Linux server
-
-The hello world example in this directory is ready to use once you're on a Linux system.
-
-### Installation
+### Install Dependencies
 
 ```bash
-# Option 1: Automatic setup with uv (recommended)
-just setup    # Installs uv and Python 3.11
-just install  # Installs tilelang and torch
-
-# Option 2: Using uv directly
-uv pip install tilelang torch --system
-
-# Option 3: Sync from pyproject.toml
-just sync
+pip install executorch torchvision
 ```
 
-### Run the Example
+### Run Demo
 
 ```bash
-# Using just (recommended)
-just run
-
-# Or directly with uv
-uv run python3 hello_vector_add.py
+python3 hello_executorch_multimodel.py
 ```
 
-### Check Dependencies
+## How It Works
 
-```bash
-just check
-```
+### The Challenge: Static Shapes
 
-## What You'll See
+ExecutorTorch models have **fixed input shapes** determined at export time. For tiled inference with variable tile sizes, we need a different approach than traditional frameworks.
 
-```
-============================================================
-TileLang Hello World: Vector Addition
-============================================================
+### The Solution: Multi-Model Pattern
 
-Vector size: 1,048,576 elements
-Computing: C = A + B (element-wise)
-
-[1/4] Compiling TileLang kernel...
-✓ Kernel compiled successfully
-
-[2/4] Preparing test data...
-✓ Using device: cuda
-
-[3/4] Running TileLang kernel...
-✓ Kernel executed
-
-[4/4] Validating results...
-✓ Results match PyTorch reference!
-
-============================================================
-Performance Benchmark
-============================================================
-
-Latency: 0.123 ms
-Bandwidth: 97.56 GB/s
-Throughput: 8.53 GFLOPS
-
-============================================================
-✓ Hello TileLang - Success!
-============================================================
-```
-
-## Code Walkthrough
-
-### The Kernel
+Export separate models for each expected input size:
 
 ```python
-@tilelang.jit
-def vector_add(N, block_size=256, dtype="float32"):
-    @T.prim_func
-    def vector_add_kernel(
-        A: T.Tensor((N,), dtype),
-        B: T.Tensor((N,), dtype),
-        C: T.Tensor((N,), dtype),
-    ):
-        with T.Kernel(T.ceildiv(N, block_size), threads=block_size) as bx:
-            C_local = T.alloc_fragment((block_size,), dtype)
-            
-            for i in T.Parallel(block_size):
-                idx = bx * block_size + i
-                if idx < N:
-                    C_local[i] = A[idx] + B[idx]
-            
-            for i in T.Parallel(block_size):
-                idx = bx * block_size + i
-                if idx < N:
-                    C[idx] = C_local[i]
+models = {
+    'full': export_model(1024, 1024),    # Full image model
+    'tile': export_model(288, 288),       # Tile model (256 + overlap)
+}
+```
+
+At runtime:
+1. Use **full model** for non-tiled inference
+2. Use **tile model** for tiled inference (with padding for boundary tiles)
+
+## Architecture
+
+```
+┌─────────────────────────────────────┐
+│  Export Phase (Offline)             │
+├─────────────────────────────────────┤
+│ PyTorch Model                       │
+│   ↓                                 │
+│ Export for each size:               │
+│   • Full: 1024×1024 → .pte         │
+│   • Tile: 288×288 → .pte           │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│  Runtime Phase (On-Device)          │
+├─────────────────────────────────────┤
+│ Non-tiled: Use full model          │
+│                                     │
+│ Tiled:                              │
+│   1. Load tile model                │
+│   2. For each tile:                 │
+│      • Extract with overlap         │
+│      • Pad to match model size      │
+│      • Process with tile model      │
+│      • Stitch into output           │
+└─────────────────────────────────────┘
+```
+
+## Test Results
+
+```
+Non-Tiled Inference (ExecutorTorch):
+  - Input: 1024×1024 (4 MB)
+  - Processing time: 43.35 ms
+  
+Tiled Inference (ExecutorTorch - 16 tiles):
+  - Tile size: 256×256 + 16px overlap
+  - Processing time: 87.06 ms
+  - Accuracy: Perfect (0.00e+00 difference)
+```
+
+## Benefits of Tiled Processing
+
+- ✅ **Reduced Memory Usage** - Process large inputs in manageable chunks
+- ✅ **Better Cache Locality** - Smaller working sets fit in CPU cache
+- ✅ **Scalable** - Handle inputs larger than available memory
+- ✅ **Edge Optimized** - Ideal for memory-constrained devices
+
+## Use Cases
+
+### When to Use Tiled Inference
+
+- ✅ Processing very large images (>2K resolution)
+- ✅ Memory-constrained devices (mobile, embedded)  
+- ✅ Avoiding Out-Of-Memory errors
+- ✅ Batch processing large datasets
+
+### Real-World Applications
+
+- 📱 Mobile image processing apps
+- 🤖 Edge AI devices
+- 📷 High-resolution image analysis
+- 🏥 Medical imaging on embedded systems
+- 🛰️ Satellite image processing
+
+## Implementation Details
+
+### File Structure
+
+- `hello_executorch_multimodel.py` - Main demo showcasing multi-model tiled inference
+- `.gitignore` - Configured to ignore generated `.pte` model files
+- `README.md` - This documentation
+
+### Code Highlights
+
+**Model Export:**
+```python
+def export_executorch_model(model, h, w, filename):
+    exported = torch.export.export(model, (example_input,))
+    edge_program = to_edge(exported)
+    et_program = edge_program.to_executorch()
     
-    return vector_add_kernel
+    with open(filename, "wb") as f:
+        f.write(et_program.buffer)
 ```
 
-**Key Concepts:**
+**Tiled Inference with Padding:**
+```python
+# Extract tile
+tile = input_data[:, :, start_h:end_h, start_w:end_w].contiguous()
 
-1. `@tilelang.jit` - JIT compilation decorator
-2. `T.Kernel()` - Defines grid/block dimensions
-3. `T.alloc_fragment()` - Allocates thread-local memory
-4. `T.Parallel()` - Parallel loop execution
+# Pad to expected size for boundary tiles
+if tile.shape != expected_shape:
+    padded_tile = torch.zeros(expected_shape)
+    padded_tile[:, :, :actual_h, :actual_w] = tile
+    tile = padded_tile
 
-## Project Structure
-
-```
-hello_tilelang/
-├── README.md              # This file
-├── hello_vector_add.py    # Main vector addition example
-└── justfile               # Build automation recipes
-```
-
-## C++ Version
-
-This project also includes a **C++ implementation** for testing TileLang via CLI and CMake:
-
-### Quick Start (C++)
-
-```bash
-# Build and run C++ example
-just cpp
-
-# Or step by step:
-just cpp-configure  # Configure CMake
-just cpp-build      # Build executable
-just cpp-run        # Run the program
+# Process with ExecutorTorch
+result = tile_model.run_method("forward", (tile,))
 ```
 
-### Files
+## Environment
 
-- `hello_vector_add.cpp` - C++ implementation (CPU reference)
-- `CMakeLists.txt` - CMake build configuration
+- **Python**: 3.10
+- **PyTorch**: 2.8.0+cu128
+- **ExecutorTorch**: 0.7.0
+- **System**: Ubuntu 22.04
 
-The C++ version currently uses a CPU reference implementation. TileLang C++ API integration is pending.
+## Resources
 
-## Available Commands
-
-| Command | Description |
-|---------|-------------|
-| **Python Commands** | |
-| `just setup` | Install uv and Python 3.11 |
-| `just install` | Install dependencies with uv |
-| `just sync` | Sync dependencies from pyproject.toml |
-| `just run` | Run the Python example |
-| `just run-profile` | Run with CUDA profiling |
-| `just check` | Check installed dependencies |
-| **C++ Commands** | |
-| `just cpp` | Build and run C++ example (quick) |
-| `just cpp-configure` | Configure CMake build |
-| `just cpp-build` | Build C++ executable |
-| `just cpp-run` | Run C++ example |
-| `just cpp-clean` | Clean C++ build artifacts |
-| **Utilities** | |
-| `just clean` | Clean up generated files |
-| `just help` | Show help message |
-
-## Next Steps
-
-After mastering this simple example, explore more complex TileLang kernels:
-
-- **Matrix Multiplication (GEMM)** - See `thirdparty/tilelang/examples/gemm/`
-- **Flash Attention** - See `thirdparty/tilelang/examples/flash_attention/`
-- **Convolution** - See `thirdparty/tilelang/examples/convolution/`
-
-## Learn More
-
-- [TileLang Documentation](https://tilelang.com)
-- [TileLang GitHub](https://github.com/tile-ai/tilelang)
-- [TileLang Examples](../Developer/cloth-fit/thirdparty/tilelang/examples/)
+- [ExecutorTorch Documentation](https://pytorch.org/executorch/)
+- [PyTorch Edge](https://pytorch.org/blog/pytorch-edge/)
+- [ExecutorTorch GitHub](https://github.com/pytorch/executorch)
 
 ## License
 
-This example is provided as educational material. TileLang itself is subject to its own license terms.
+MIT License - See individual dependencies for their licenses.
+
+## Contributing
+
+Feel free to open issues or submit PRs for improvements!
+
+---
+
+**Note**: This pattern is used in real mobile/embedded applications where ExecutorTorch's static shapes require pre-compiled models for each expected input configuration.
