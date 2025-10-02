@@ -1,0 +1,19 @@
+[project]
+name = "tilelang-hello-world"
+version = "0.1.0"
+description = "TileLang Hello World - Vector Addition Example"
+requires-python = ">=3.8"
+dependencies = [
+    "tilelang",
+    "torch",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
