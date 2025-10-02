@@ -1,7 +1,7 @@
 # ExecutorTorch Tiled Inference Dev Container
-# Ubuntu 22.04 base image (works on both ARM64 and x86_64)
+# Ubuntu 24.04 base image (works on both ARM64 and x86_64)
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     curl \
+    just \
     wget \
     vim \
     && rm -rf /var/lib/apt/lists/*

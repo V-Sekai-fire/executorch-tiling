@@ -50,3 +50,5 @@ test_*.py
 
 # Documentation
 *.pdf
+
+*.pte

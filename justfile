@@ -1,5 +1,5 @@
-# ExecutorTorch Tiled Inference - Justfile
-# Build automation for multi-model tiled inference demo
+# ExecutorTorch Dynamic Shapes Tiled Inference - Justfile
+# Build automation for dynamic shapes demo
 
 # Default recipe - show help
 default:
@@ -22,9 +22,12 @@ install:
     @pip install torch executorch torchvision
     @echo "✓ Installation complete!"
 
-# Run the demo
+# Run the dynamic shapes demo
 run:
-    @echo "Running ExecutorTorch Multi-Model Tiled Inference Demo..."
+    @echo "Running ExecutorTorch Dynamic Shapes Tiled Inference Demo..."
+    @echo ""
+    @echo "This demo uses a SINGLE dynamic model (256-1024 range)"
+    @echo "Based on solution from: github.com/pytorch/executorch/issues/3636"
     @echo ""
     @echo "Checking dependencies..."
     @python -c "import executorch; print('✓ executorch:', executorch.__version__)" || echo "✗ executorch not installed"
@@ -37,21 +40,26 @@ run:
 clean:
     @echo "Cleaning generated model files..."
     @rm -f *.pte
-    @echo "✓ Cleaned"
+    @echo "✓ Cleaned all .pte files"
 
 # Show help
 help:
-    @echo "ExecutorTorch Tiled Inference - Available Commands"
-    @echo "=================================================="
+    @echo "ExecutorTorch Dynamic Shapes Tiled Inference - Available Commands"
+    @echo "================================================================="
+    @echo ""
+    @echo "This project demonstrates dynamic shapes in ExecutorTorch, allowing"
+    @echo "a single model to handle variable input sizes (256-1024 range)."
     @echo ""
     @echo "Setup Commands:"
     @echo "  just install         - Install dependencies (executorch, torch)"
     @echo "  just install-python  - Install Python 3.10 with uv"
     @echo ""
     @echo "Run Commands:"
-    @echo "  just run            - Run the demo"
+    @echo "  just run            - Run the dynamic shapes demo"
     @echo "  just clean          - Remove generated .pte model files"
     @echo ""
     @echo "Info Commands:"
     @echo "  just help           - Show this help message"
     @echo "  just check-uv       - Check if uv is installed"
+    @echo ""
+    @echo "For more info: github.com/pytorch/executorch/issues/3636"
