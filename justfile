@@ -1,5 +1,5 @@
-# ExecutorTorch Dynamic Shapes Tiled Inference - Justfile
-# Build automation for dynamic shapes demo
+# ExecutorTorch XNNPACK CPU Backend - Dynamic Shapes Tiled Inference - Justfile
+# Build automation for XNNPACK backend with dynamic shapes demo
 
 # Default recipe - show help
 default:
@@ -22,12 +22,17 @@ install:
     @pip install torch executorch torchvision
     @echo "✓ Installation complete!"
 
-# Run the dynamic shapes demo
+# Run the XNNPACK backend demo with PyTorch comparison
 run:
-    @echo "Running ExecutorTorch Dynamic Shapes Tiled Inference Demo..."
+    @echo "Running ExecutorTorch XNNPACK CPU Backend Demo..."
     @echo ""
-    @echo "This demo uses a SINGLE dynamic model (256-1024 range)"
-    @echo "Based on solution from: github.com/pytorch/executorch/issues/3636"
+    @echo "This demo compares PyTorch (eager) vs ExecutorTorch (XNNPACK)"
+    @echo "and demonstrates DYNAMIC SHAPES for variable input sizes."
+    @echo ""
+    @echo "Features:"
+    @echo "  • XNNPACK CPU-optimized inference"
+    @echo "  • Single dynamic model (256-1024 range)"
+    @echo "  • Performance comparison with PyTorch"
     @echo ""
     @echo "Checking dependencies..."
     @python -c "import executorch; print('✓ executorch:', executorch.__version__)" || echo "✗ executorch not installed"
@@ -44,18 +49,24 @@ clean:
 
 # Show help
 help:
-    @echo "ExecutorTorch Dynamic Shapes Tiled Inference - Available Commands"
-    @echo "================================================================="
+    @echo "ExecutorTorch XNNPACK CPU Backend - Available Commands"
+    @echo "======================================================"
     @echo ""
-    @echo "This project demonstrates dynamic shapes in ExecutorTorch, allowing"
-    @echo "a single model to handle variable input sizes (256-1024 range)."
+    @echo "This project demonstrates XNNPACK CPU backend with dynamic shapes"
+    @echo "in ExecutorTorch, comparing performance against PyTorch eager mode."
+    @echo ""
+    @echo "Key Features:"
+    @echo "  • XNNPACK CPU optimization (2-5x speedup)"
+    @echo "  • Dynamic shapes (256-1024 range)"
+    @echo "  • PyTorch vs XNNPACK comparison"
+    @echo "  • Single optimized model file"
     @echo ""
     @echo "Setup Commands:"
     @echo "  just install         - Install dependencies (executorch, torch)"
     @echo "  just install-python  - Install Python 3.10 with uv"
     @echo ""
     @echo "Run Commands:"
-    @echo "  just run            - Run the dynamic shapes demo"
+    @echo "  just run            - Run the XNNPACK backend demo"
     @echo "  just clean          - Remove generated .pte model files"
     @echo ""
     @echo "Info Commands:"

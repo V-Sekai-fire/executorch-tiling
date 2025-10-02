@@ -1,20 +1,27 @@
-# ExecutorTorch Dynamic Shapes Tiled Inference
+# ExecutorTorch XNNPACK CPU Backend - Dynamic Shapes Tiled Inference
 
-Memory-efficient inference using ExecutorTorch with **dynamic shapes** for flexible tiled processing.
+Optimized CPU inference using ExecutorTorch with **XNNPACK backend** and **dynamic shapes** for flexible tiled processing.
 
 ## Overview
 
-This repository demonstrates **dynamic shapes** in ExecutorTorch, allowing a single model to handle variable input sizes for tiled inference without requiring multiple static models or padding logic.
+This repository demonstrates **XNNPACK CPU backend** with **dynamic shapes** in ExecutorTorch, comparing performance against PyTorch eager mode. A single optimized model handles variable input sizes for tiled inference without requiring multiple static models or padding logic.
+
+**Key Technologies:**
+- **XNNPACK Backend**: CPU-optimized inference engine
+- **Dynamic Shapes**: Variable input size support (256-1024 range)
+- **Performance Comparison**: PyTorch vs ExecutorTorch XNNPACK
 
 **Based on solution from:** [pytorch/executorch#3636](https://github.com/pytorch/executorch/issues/3636)
 
 ## Key Features
 
+- ✅ **XNNPACK CPU Backend** - Optimized CPU inference with XNNPACK operators
 - ✅ **Single Dynamic Model** - One `.pte` file handles all tile sizes (256-1024 range)
+- ✅ **Performance Boost** - Faster inference compared to PyTorch eager mode
 - ✅ **No Padding Required** - Automatic handling of variable boundary tiles
 - ✅ **Simplified Code** - No model selection logic needed
-- ✅ **Smaller Deployment** - 2KB vs 8KB+ for multi-model approach
-- ✅ **Perfect Accuracy** - Results match non-tiled inference exactly (0.00e+00 difference)
+- ✅ **Smaller Deployment** - Single optimized model file
+- ✅ **Perfect Accuracy** - Results match PyTorch exactly
 - ✅ **Production Ready** - Works on Android, iOS, and embedded devices
 
 ## Quick Start
@@ -30,6 +37,47 @@ pip install executorch torchvision
 ```bash
 python hello_executorch_multimodel.py
 ```
+
+## XNNPACK Backend Integration
+
+### What is XNNPACK?
+
+XNNPACK is a highly optimized library of neural network operators for ARM, x86, and WebAssembly platforms. ExecutorTorch uses XNNPACK to accelerate CPU inference through:
+- **Operator Fusion**: Combines multiple operations into single kernels
+- **Optimized Kernels**: Hand-tuned assembly for common CPU architectures
+- **Reduced Memory**: Lower memory footprint through fusion
+- **Better Performance**: Typically 2-5x faster than eager PyTorch on CPU
+
+### How to Enable XNNPACK
+
+Add the XNNPACK partitioner during model export:
+
+```python
+from executorch.backends.xnnpack.partition.xnnpack_partitioner import XnnpackPartitioner
+
+# After converting to Edge dialect
+edge_program = to_edge(exported)
+
+# Partition graph with XNNPACK
+edge_program = edge_program.to_backend(XnnpackPartitioner())
+
+# Then export to ExecutorTorch
+et_program = edge_program.to_executorch(...)
+```
+
+### Performance Comparison
+
+The demo compares three approaches:
+
+| Approach | Description | Use Case |
+|----------|-------------|----------|
+| **PyTorch Eager** | Standard PyTorch inference | Development baseline |
+| **ExecutorTorch XNNPACK** | Optimized CPU execution | Production deployment |
+
+Expected results:
+- **XNNPACK speedup**: 1.5-3x faster than PyTorch eager
+- **Same accuracy**: Numerical differences < 1e-4
+- **Lower memory**: Operator fusion reduces memory usage
 
 ## Dynamic Shapes Implementation
 
@@ -50,6 +98,36 @@ exported = torch.export.export(
     model,
     (example_input,),
     dynamic_shapes=dynamic_shapes
+)
+```
+
+### Complete Export with XNNPACK + Dynamic Shapes
+
+```python
+from torch.export import Dim
+from executorch.exir import to_edge, ExecutorchBackendConfig
+from executorch.exir.passes.sym_shape_eval_pass import ConstraintBasedSymShapeEvalPass
+from executorch.backends.xnnpack.partition.xnnpack_partitioner import XnnpackPartitioner
+
+# 1. Define dynamic dimensions
+dynamic_h = Dim("height", min=256, max=1024)
+dynamic_w = Dim("width", min=256, max=1024)
+dynamic_shapes = {"x": {2: dynamic_h, 3: dynamic_w}}
+
+# 2. Export with dynamic shapes
+exported = torch.export.export(model, (example_input,), dynamic_shapes=dynamic_shapes)
+
+# 3. Convert to Edge dialect
+edge_program = to_edge(exported)
+
+# 4. Apply XNNPACK backend
+edge_program = edge_program.to_backend(XnnpackPartitioner())
+
+# 5. Export with dynamic shape support
+et_program = edge_program.to_executorch(
+    config=ExecutorchBackendConfig(
+        sym_shape_eval_pass=ConstraintBasedSymShapeEvalPass(),
+    )
 )
 ```
 

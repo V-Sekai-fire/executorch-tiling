@@ -1,7 +1,7 @@
 [project]
 name = "executorch-tiled-inference"
 version = "0.1.0"
-description = "ExecutorTorch Multi-Model Tiled Inference Demo"
+description = "ExecutorTorch Single-Model Tiled Inference Demo"
 requires-python = ">=3.8"
 dependencies = [
     "torch",
